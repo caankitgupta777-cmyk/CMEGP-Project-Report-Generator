@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CMEGP Project Report Generator</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <meta name="description" content="Generate Detailed Project Reports (DPR) for the Chief Minister Employment Generation Programme (CMEGP), Maharashtra, with real-time financial projections.">
+</head>
+<body>
+
+  <!-- App Header -->
+  <header>
+    <div class="brand">
+      <div class="logo-icon">C</div>
+      <div>
+        <h1>CMEGP DPR Generator</h1>
+      </div>
+    </div>
+    <div class="header-controls">
+      <div class="preset-selector">
+        <label for="template-preset">Load Template:</label>
+        <select id="template-preset">
+          <option value="blank" selected>Blank Template (Start from Scratch)</option>
+          <option value="car_wash">Samarth Car Washing Center</option>
+          <option value="photo_juned">JK Film Studio (Photography)</option>
+          <option value="photo_tushar">Amey Film Creation (Videography)</option>
+          <option value="mandap">Jay Gajanan Bichayat Kendra (Mandap)</option>
+        </select>
+      </div>
+      <button class="btn btn-success" onclick="printReport()">
+        <span>Print Report / Save PDF</span>
+      </button>
+      <button class="btn btn-word" onclick="exportToWord()">
+        <span>Download Word</span>
+      </button>
+      <button class="btn btn-excel" onclick="exportToExcel()">
+        <span>Download Excel</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Split Layout -->
+  <main>
+    <!-- Left Column: Input Form Sidebar -->
+    <div class="sidebar">
+      <!-- Tabs Navigation -->
+      <div class="tabs-header">
+        <button class="tab-btn active" data-tab="tab-promoter">Promoter</button>
+        <button class="tab-btn" data-tab="tab-project">Project</button>
+        <button class="tab-btn" data-tab="tab-capex">CapEx Assets</button>
+        <button class="tab-btn" data-tab="tab-opex">OpEx Operations</button>
+        <button class="tab-btn" data-tab="tab-financials">Financials</button>
+      </div>
+
+      <!-- Scrollable Form Container -->
+      <div class="form-content">
+        <!-- Tab 1: Promoter Details -->
+        <div class="tab-panel active" id="tab-promoter">
+          <div class="form-section-title">Promoter Profile</div>
+          
+          <div class="form-group">
+            <label class="form-label" for="in-name">Applicant Full Name</label>
+            <input type="text" id="in-name" class="input-full">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="in-father">Father / Spouse Name</label>
+            <input type="text" id="in-father" class="input-full">
+          </div>
+
+          <div class="form-group row-2">
+            <div>
+              <label class="form-label" for="in-gender">Gender</label>
+              <select id="in-gender" class="input-full">
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="in-category">Social Category</label>
+              <select id="in-category" class="input-full">
+                <option value="SC">SC</option>
+                <option value="ST">ST</option>
+                <option value="OBC">OBC</option>
+                <option value="PHC">PHC (Physically Hand.)</option>
+                <option value="Ex-Serviceman">Ex-Serviceman</option>
+                <option value="Minority">Minority</option>
+                <option value="Hill Boarder">Hill Border Area</option>
+                <option value="General">General</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group row-2">
+            <div>
+              <label class="form-label" for="in-qualification_academic">Academic Qual.</label>
+              <select id="in-qualification_academic" class="input-full">
+                <option value="Under 8th">Under 8th</option>
+                <option value="8th Pass">8th Pass</option>
+                <option value="10th Pass">10th Pass</option>
+                <option value="12th Pass">12th Pass</option>
+                <option value="Graduate">Graduate</option>
+                <option value="Post Graduate">Post Graduate</option>
+                <option value="PhD">PhD</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="in-qualification_technical">Technical Qual.</label>
+              <input type="text" id="in-qualification_technical" class="input-full">
+            </div>
+          </div>
+
+          <div class="form-group row-2">
+            <div>
+              <label class="form-label" for="in-mobile">Mobile Number</label>
+              <input type="text" id="in-mobile" class="input-full">
+            </div>
+            <div>
+              <label class="form-label" for="in-email">Email Address</label>
+              <input type="email" id="in-email" class="input-full">
+            </div>
+          </div>
+
+          <div class="form-section-title">Proposed Location Address</div>
+          
+          <div class="form-group row-3">
+            <div>
+              <label class="form-label" for="in-taluka">Taluka/Block</label>
+              <input type="text" id="in-taluka" class="input-full">
+            </div>
+            <div>
+              <label class="form-label" for="in-district">District</label>
+              <input type="text" id="in-district" class="input-full">
+            </div>
+            <div>
+              <label class="form-label" for="in-pin">Pincode</label>
+              <input type="number" id="in-pin" class="input-full">
+            </div>
+          </div>
+          
+          <div class="form-group row-2">
+            <div>
+              <label class="form-label" for="in-place">Place of Signature</label>
+              <input type="text" id="in-place" class="input-full">
+            </div>
+            <div>
+              <!-- spacer -->
+            </div>
+          </div>
+          
+          <div class="form-section-title">Promoter Biography</div>
+          <div class="form-group">
+            <label class="form-label" for="in-promoter_about">About the Promoter (Paragraph for DPR)</label>
+            <textarea id="in-promoter_about" class="input-full" rows="6" placeholder="Enter background details, academic and technical qualifications, experience, etc."></textarea>
+          </div>
+        </div>
+
+        <!-- Tab 2: Project Setup -->
+        <div class="tab-panel" id="tab-project">
+          <div class="form-section-title">Project Meta Information</div>
+
+          <div class="form-group">
+            <label class="form-label" for="in-project_name">Name of Business / Project</label>
+            <input type="text" id="in-project_name" class="input-full">
+          </div>
+
+          <div class="form-group row-2">
+            <div>
+              <label class="form-label" for="in-unit_type">Unit Classification</label>
+              <select id="in-unit_type" class="input-full">
+                <option value="Service">Service Unit</option>
+                <option value="Manufacturing">Manufacturing Unit</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="in-agency">Sponsoring Agency</label>
+              <select id="in-agency" class="input-full">
+                <option value="KVIC">KVIC (Rural)</option>
+                <option value="KVIB">KVIB (Rural)</option>
+                <option value="DIC (Rural)">DIC (Rural)</option>
+                <option value="DIC (Urban)">DIC (Urban)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-section-title">Land & Rent Details</div>
+
+          <div class="form-group row-2">
+            <div>
+              <label class="form-label" for="in-land_type">Land Status</label>
+              <select id="in-land_type" class="input-full">
+                <option value="Own">Own</option>
+                <option value="Rented">Rented</option>
+                <option value="Leased">Leased</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="in-land_val">Land Value / Cost (Rs.)</label>
+              <input type="number" id="in-land_val" class="input-full">
+            </div>
+          </div>
+
+          <div class="form-group row-2">
+            <div>
+              <label class="form-label" for="in-rent_pm">Monthly Rent (if rented, Rs.)</label>
+              <input type="number" id="in-rent_pm" class="input-full">
+            </div>
+            <div>
+              <label class="form-label" for="in-preop_cost">Pre-operative Cost (Rs.)</label>
+              <input type="number" id="in-preop_cost" class="input-full">
+            </div>
+          </div>
+
+          <div class="form-group row-2">
+            <div>
+              <label class="form-label" for="in-furniture_cost">Furniture & Fixtures (Rs.)</label>
+              <input type="number" id="in-furniture_cost" class="input-full">
+            </div>
+            <div>
+              <label class="form-label" for="in-contingency_cost">Contingency / Others (Rs.)</label>
+              <input type="number" id="in-contingency_cost" class="input-full">
+            </div>
+          </div>
+
+          <div class="form-group row-2">
+            <div>
+              <label class="form-label" for="in-power_hp">Power Requirement (Per Year Units)</label>
+              <input type="number" id="in-power_hp" class="input-full">
+            </div>
+            <div>
+              <!-- spacer -->
+            </div>
+          </div>
+          
+          <div class="form-section-title">Project Introduction Text</div>
+          <div class="form-group">
+            <label class="form-label" for="in-project_intro">Project Introduction (Paragraph for DPR)</label>
+            <textarea id="in-project_intro" class="input-full" rows="6" placeholder="Enter the market overview, project purpose, services/products brief, and scope."></textarea>
+          </div>
+        </div>
+
+        <!-- Tab 3: CapEx Assets -->
+        <div class="tab-panel" id="tab-capex">
+          <div class="form-section-title">Factory Workshed / Building Details</div>
+          <div class="form-table-container">
+            <table class="form-table" id="form-workshed">
+              <thead>
+                <tr>
+                  <th>Particulars</th>
+                  <th>Area (Sq.ft)</th>
+                  <th>Rate/Sq.ft</th>
+                  <th>Amount (Rs.)</th>
+                  <th style="width: 40px;"></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <div class="form-table-actions">
+              <span style="font-size:11px; color:var(--text-muted);">Add new construction items</span>
+              <button class="icon-btn add-btn" type="button" onclick="addRow('workshed', ['particulars', 'area', 'rate', 'amount'])">+</button>
+            </div>
+          </div>
+
+          <div class="form-section-title">Machinery & Equipment Details</div>
+          <div class="form-table-container">
+            <table class="form-table" id="form-machinery">
+              <thead>
+                <tr>
+                  <th>Asset Particulars</th>
+                  <th>Qty</th>
+                  <th>Rate per unit</th>
+                  <th>Amount (Rs.)</th>
+                  <th style="width: 40px;"></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <div class="form-table-actions">
+              <span style="font-size:11px; color:var(--text-muted);">List major machinery items</span>
+              <button class="icon-btn add-btn" type="button" onclick="addRow('machinery', ['particulars', 'qty', 'rate', 'amount'])">+</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: OpEx Operations -->
+        <div class="tab-panel" id="tab-opex">
+          <div class="form-section-title">Estimated Annual Sales Revenue</div>
+          <div class="form-table-container">
+            <table class="form-table" id="form-sales">
+              <thead>
+                <tr>
+                  <th>Product / Service Particulars</th>
+                  <th>Unit</th>
+                  <th>Rate per Unit</th>
+                  <th>Annual Qty</th>
+                  <th>Amount (Rs.)</th>
+                  <th style="width: 40px;"></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <div class="form-table-actions">
+              <span style="font-size:11px; color:var(--text-muted);">Define annual sales streams</span>
+              <button class="icon-btn add-btn" type="button" onclick="addRow('sales', ['particulars', 'unit', 'rate_unit', 'qty', 'amount'])">+</button>
+            </div>
+          </div>
+
+          <div class="form-section-title">Raw Material & Consumables</div>
+          <div class="form-table-container">
+            <table class="form-table" id="form-raw_material">
+              <thead>
+                <tr>
+                  <th>Material Particulars</th>
+                  <th>Unit</th>
+                  <th>Rate per Unit</th>
+                  <th>Annual Qty</th>
+                  <th>Amount (Rs.)</th>
+                  <th style="width: 40px;"></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <div class="form-table-actions">
+              <span style="font-size:11px; color:var(--text-muted);">Define materials needed</span>
+              <button class="icon-btn add-btn" type="button" onclick="addRow('raw_material', ['particulars', 'unit', 'rate', 'qty', 'amount'])">+</button>
+            </div>
+          </div>
+
+          <div class="form-section-title">Wages Details (Workers)</div>
+          <div class="form-table-container">
+            <table class="form-table" id="form-wages">
+              <thead>
+                <tr>
+                  <th>Worker Designation</th>
+                  <th>No of Workers</th>
+                  <th>Wages Per Month (Rs.)</th>
+                  <th style="width: 40px;"></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <div class="form-table-actions">
+              <span style="font-size:11px; color:var(--text-muted);">List core operations staff</span>
+              <button class="icon-btn add-btn" type="button" onclick="addRow('wages', ['particulars', 'no_workers', 'wages_pm'])">+</button>
+            </div>
+          </div>
+
+          <div class="form-section-title">Salary Details (Admin Staff)</div>
+          <div class="form-table-container">
+            <table class="form-table" id="form-salary">
+              <thead>
+                <tr>
+                  <th>Staff Designation</th>
+                  <th>No of Staff</th>
+                  <th>Salary Per Month (Rs.)</th>
+                  <th style="width: 40px;"></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <div class="form-table-actions">
+              <span style="font-size:11px; color:var(--text-muted);">List administration staff</span>
+              <button class="icon-btn add-btn" type="button" onclick="addRow('salary', ['particulars', 'no_staff', 'salary_pm'])">+</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 5: Financial Parameters -->
+        <div class="tab-panel" id="tab-financials">
+          <div class="form-section-title">Finance Rates & Terms</div>
+
+          <div class="form-group row-2">
+            <div>
+              <label class="form-label" for="in-interest_rate">Bank Loan Interest %</label>
+              <input type="number" id="in-interest_rate" class="input-full" step="any">
+            </div>
+            <div>
+              <label class="form-label" for="in-payback_period">Payback Period (Years)</label>
+              <input type="number" id="in-payback_period" class="input-full">
+            </div>
+          </div>
+
+          <div class="form-group row-2">
+            <div>
+              <label class="form-label" for="in-moratorium_period">Moratorium (Months)</label>
+              <input type="number" id="in-moratorium_period" class="input-full">
+            </div>
+            <div>
+              <label class="form-label" for="in-tax_rate">Income Tax Rate %</label>
+              <input type="number" id="in-tax_rate" class="input-full">
+            </div>
+          </div>
+
+          <div class="form-section-title">Depreciation Rates (%)</div>
+
+          <div class="form-group row-2">
+            <div>
+              <label class="form-label" for="in-depr_building">Workshed / Building</label>
+              <input type="number" id="in-depr_building" class="input-full">
+            </div>
+            <div>
+              <label class="form-label" for="in-depr_machinery">Machinery & Equip.</label>
+              <input type="number" id="in-depr_machinery" class="input-full">
+            </div>
+          </div>
+
+          <div class="form-section-title">Working Capital Cycle & Basis</div>
+
+          <div class="form-group row-2">
+            <div>
+              <label class="form-label" for="in-raw_material_days">Raw Material Days</label>
+              <input type="number" id="in-raw_material_days" class="input-full">
+            </div>
+            <div>
+              <label class="form-label" for="in-receivables_days">Receivables Days</label>
+              <input type="number" id="in-receivables_days" class="input-full">
+            </div>
+          </div>
+
+          <div class="form-group row-2">
+            <div>
+              <label class="form-label" for="in-wc_raw_material_val">WC Raw Material Value (Rs.)</label>
+              <input type="number" id="in-wc_raw_material_val" class="input-full">
+            </div>
+            <div>
+              <!-- spacer -->
+            </div>
+          </div>
+
+          <div class="form-section-title">Operating Overheads (% of Revenue)</div>
+          
+          <div class="form-group row-2">
+            <div>
+              <label class="form-label" for="in-maint_pct">Repair & Maint. %</label>
+              <input type="number" id="in-maint_pct" class="input-full" step="any">
+            </div>
+            <div>
+              <label class="form-label" for="in-power_pct">Power & Fuel %</label>
+              <input type="number" id="in-power_pct" class="input-full" step="any">
+            </div>
+          </div>
+
+          <div class="form-group row-2">
+            <div>
+              <label class="form-label" for="in-overhead_pct">Overhead Expenses %</label>
+              <input type="number" id="in-overhead_pct" class="input-full" step="any">
+            </div>
+            <div>
+              <label class="form-label" for="in-phone_pct">Telephone %</label>
+              <input type="number" id="in-phone_pct" class="input-full" step="any">
+            </div>
+          </div>
+
+          <div class="form-group row-3">
+            <div>
+              <label class="form-label" for="in-stationery_pct">Stationery %</label>
+              <input type="number" id="in-stationery_pct" class="input-full" step="any">
+            </div>
+            <div>
+              <label class="form-label" for="in-adv_pct">Advertisement %</label>
+              <input type="number" id="in-adv_pct" class="input-full" step="any">
+            </div>
+            <div>
+              <label class="form-label" for="in-misc_pct">Miscellaneous %</label>
+              <input type="number" id="in-misc_pct" class="input-full" step="any">
+            </div>
+          </div>
+
+          <div class="form-section-title">Custom Financing Override</div>
+          
+          <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="in-override_financing">
+            <label for="in-override_financing" class="form-label" style="margin-bottom:0; cursor:pointer;">Override Auto Calculations</label>
+          </div>
+
+          <div class="form-group row-2">
+            <div>
+              <label class="form-label" for="in-custom_own_contrib">Own Capital (Rs.)</label>
+              <input type="number" id="in-custom_own_contrib" class="input-full">
+            </div>
+            <div>
+              <label class="form-label" for="in-custom_term_loan">Term Loan Amount (Rs.)</label>
+              <input type="number" id="in-custom_term_loan" class="input-full">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Live DPR Preview Container -->
+    <div class="preview-container">
+      
+      <!-- Page 1: Cover Page -->
+      <div class="paper-page">
+        <div class="cover-page">
+          <div class="cover-header">
+            <div class="cover-scheme-title">Chief Minister Employment Generation Programme (CMEGP)</div>
+            <div class="cover-tagline">Government of Maharashtra - Directorate of Industries</div>
+          </div>
+          
+          <div class="cover-title-box">
+            <div class="cover-pre-title">Detailed Project Report (DPR) on</div>
+            <div class="cover-title" id="p1-title">[PROJECT NAME]</div>
+          </div>
+          
+          <div class="cover-footer">
+            <div class="cover-footer-left">
+              <h4>Submitted To:</h4>
+              <p id="p1-agency">[SPONSORING AGENCY]</p>
+              <p>State: Maharashtra</p>
+            </div>
+            <div class="cover-footer-right">
+              <h4>Prepared By (Promoter):</h4>
+              <p id="p1-applicant">[PROMOTER NAME]</p>
+              <p id="p1-email">[EMAIL]</p>
+              <p id="p1-mobile">[MOBILE]</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page 2: Project Glance -->
+      <div class="paper-page">
+        <h2 class="report-title">Project At a Glance - Top Sheet</h2>
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th style="width: 40px;">S.N.</th>
+              <th>Key Project Parameter</th>
+              <th>Value / Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>Name of the Entrepreneur / Unit</td>
+              <td id="gl-applicant" class="bold">-</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>Constitution (Legal Status)</td>
+              <td id="gl-constitution">-</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>Father's / Spouse Name</td>
+              <td id="gl-father">-</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>Proposed Unit Address</td>
+              <td id="gl-address">-</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>Sponsoring Agency of the project</td>
+              <td id="gl-agency" class="bold">-</td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td>Name of Business / Proposed Activity</td>
+              <td id="gl-project-name" class="bold">-</td>
+            </tr>
+            <tr>
+              <td>7</td>
+              <td>Proposed Products / Services List</td>
+              <td id="gl-product">-</td>
+            </tr>
+            <tr>
+              <td>8</td>
+              <td>Total Estimated Cost of Project</td>
+              <td id="gl-cost" class="bold num">-</td>
+            </tr>
+            <tr>
+              <td>9</td>
+              <td class="bold">Means of Finance:</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td></td>
+              <td class="indent-1">i. Own Contribution (Capital)</td>
+              <td id="gl-capital" class="num">-</td>
+            </tr>
+            <tr>
+              <td></td>
+              <td class="indent-1">ii. Bank Term Loan Finance</td>
+              <td id="gl-term-loan" class="num">-</td>
+            </tr>
+            <tr>
+              <td></td>
+              <td class="indent-1">iii. Government Margin Money Subsidy</td>
+              <td id="gl-subsidy" class="bold num">-</td>
+            </tr>
+            <tr>
+              <td>10</td>
+              <td>Average Debt Service Coverage Ratio (DSCR)</td>
+              <td id="gl-dscr" class="bold">-</td>
+            </tr>
+            <tr>
+              <td>11</td>
+              <td>Project Pay Back Period</td>
+              <td id="gl-payback">-</td>
+            </tr>
+            <tr>
+              <td>12</td>
+              <td>Project Implementation Period</td>
+              <td id="gl-impl">-</td>
+            </tr>
+            <tr>
+              <td>13</td>
+              <td>1st Year Break Even Point (BEP %)</td>
+              <td id="gl-bep" class="num">-</td>
+            </tr>
+            <tr>
+              <td>14</td>
+              <td>Employment Generation Potential</td>
+              <td id="gl-employment">-</td>
+            </tr>
+            <tr>
+              <td>15</td>
+              <td>Power Requirement (Per Year Units)</td>
+              <td id="gl-power">-</td>
+            </tr>
+            <tr>
+              <td>16</td>
+              <td>Major Raw Materials Needed</td>
+              <td id="gl-raw">-</td>
+            </tr>
+            <tr>
+              <td>17</td>
+              <td>Estimated Annual Sales Turnover (100% cap)</td>
+              <td id="gl-sales" class="bold num">-</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <div class="signature-block">
+          <div>
+            <p>Place: <span class="sig-place">Anjangaon Surji</span></p>
+            <p>Date: 12-06-2026</p>
+          </div>
+          <div class="signature-container">
+            <div class="sig-name">-</div>
+            <div class="signature-box">Signature of the Beneficiary</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page 3: DPR Introduction & Cost of Project -->
+      <div class="paper-page">
+        <h2 class="report-title">Detailed Project Report (DPR)</h2>
+        
+        <h3 class="report-subtitle">1. Introduction</h3>
+        <p class="report-paragraph" id="p3-intro">
+The automobile service industry has witnessed steady growth due to the increasing number of vehicles and rising awareness among vehicle owners about regular maintenance. A Car Washing, Wheel Alignment, and Allied Automobile Service Center aims to provide comprehensive vehicle care solutions under one roof.
+This project focuses on offering services such as car washing, wheel alignment, wheel balancing, tyre care, basic servicing, and other related maintenance services to ensure vehicle safety, performance, and longevity. With the use of modern equipment, trained manpower, and standardized procedures, the service center intends to deliver quality, timely, and cost-effective solutions to customers.
+        </p>
+
+        <h3 class="report-subtitle">2. About the Promoter</h3>
+        <p class="report-paragraph" id="p3-promoter">
+Mr. Shubham Mahadev Huskal is the promoter of the proposed enterprise Samarth Car Washing Center. He is a Bachelor of Commerce (B.Com.) graduate with a sound understanding of business administration, accounting, and financial management, and he also possesses practical knowledge of car washing, wheel alignment, wheel balancing, and other allied automobile services. His familiarity with operational procedures, equipment handling, service quality standards, and customer management enables him to efficiently manage the day-to-day operations of the service center. With his educational background and technical awareness, the promoter is well-equipped to establish and successfully operate Samarth Car Washing Center in a sustainable and professional manner.
+        </p>
+
+        <h3 class="report-subtitle">3. Cost of Project</h3>
+        <p class="report-paragraph">
+          The total cost of the proposed project, which includes Land (if any), Workshed/Building, Machinery & Equipments, Pre-operative expenses, and Working Capital requirements, is detailed below:
+        </p>
+        
+        <div style="font-size: 11px; font-weight: 700; margin-bottom: 6px;">A. Workshed & Construction details</div>
+        <table class="report-table" id="preview-workshed-table">
+          <thead>
+            <tr>
+              <th>Particulars</th>
+              <th style="width: 100px;" class="text-right">Area (Sq.ft)</th>
+              <th style="width: 120px;" class="text-right">Rate / Sq.ft (Rs.)</th>
+              <th style="width: 140px;" class="text-right">Amount (Rs.)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <div style="font-size: 11px; font-weight: 700; margin-bottom: 6px; margin-top: 15px;">B. Machinery & Equipment Details</div>
+        <table class="report-table" id="preview-machinery-table">
+          <thead>
+            <tr>
+              <th>Asset Description</th>
+              <th style="width: 80px;" class="text-right">Quantity</th>
+              <th style="width: 120px;" class="text-right">Rate Per Unit (Rs.)</th>
+              <th style="width: 140px;" class="text-right">Total Amount (Rs.)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Page 4: Summary Cost & Financing repays -->
+      <div class="paper-page">
+        <h2 class="report-title">Financial Summary & Means of Financing</h2>
+
+        <h3 class="report-subtitle">Summary Cost of Project</h3>
+        <table class="report-table" id="preview-cost-table">
+          <thead>
+            <tr>
+              <th>Element of Project Cost</th>
+              <th style="width: 180px;" class="text-right">Amount (Rs.)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <h3 class="report-subtitle">3.1 Means of Financing</h3>
+        <table class="report-table" id="preview-finance-table">
+          <thead>
+            <tr>
+              <th>Funding Source</th>
+              <th style="width: 120px;" class="text-right">Percentage (%)</th>
+              <th style="width: 180px;" class="text-right">Amount (Rs.)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <p class="report-paragraph" style="margin-top: 20px; font-style: italic; font-size: 11px;">
+          * Note: Margin Money Subsidy received under CMEGP will be kept as a term deposit in the financing bank branch in the name of the beneficiary for a lock-in period of three years as per scheme guidelines.
+        </p>
+
+        <div class="signature-block">
+          <div>
+            <p>Place: <span class="sig-place">Anjangaon Surji</span></p>
+            <p>Date: 12-06-2026</p>
+          </div>
+          <div class="signature-container">
+            <div class="sig-name">-</div>
+            <div class="signature-box">Signature of the Beneficiary</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page 5: Repayments Schedules -->
+      <div class="paper-page">
+        <h2 class="report-title">Loan Repayment Statements</h2>
+
+        <h3 class="report-subtitle">3.2 Statement Showing Repayment of Term Loan</h3>
+        <table class="report-table" id="preview-repay-tl-table">
+          <thead>
+            <tr>
+              <th>Year</th>
+              <th class="text-right">Opening Balance</th>
+              <th class="text-right">Principal Installment</th>
+              <th class="text-right">Closing Balance</th>
+              <th class="text-right">Interest Amount</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <h3 class="report-subtitle">Statement Showing Repayment of Working Capital Loan</h3>
+        <table class="report-table" id="preview-repay-wc-table">
+          <thead>
+            <tr>
+              <th>Year</th>
+              <th class="text-right">Opening Balance</th>
+              <th class="text-right">Principal Installment</th>
+              <th class="text-right">Closing Balance</th>
+              <th class="text-right">Interest Amount</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Page 6: Depreciation & Sales Realizations -->
+      <div class="paper-page">
+        <h2 class="report-title">Depreciation & Operating Revenue Projections</h2>
+
+        <h3 class="report-subtitle">3.3 Statement Showing Depreciation on Fixed Assets</h3>
+        <table class="report-table" id="preview-depr-table">
+          <thead>
+            <tr>
+              <th rowspan="2">Year</th>
+              <th colspan="2" class="text-center">Workshed</th>
+              <th colspan="2" class="text-center">Machinery & Furniture</th>
+              <th rowspan="2" class="text-right">Total Depreciation</th>
+            </tr>
+            <tr>
+              <th class="text-right">Opening</th>
+              <th class="text-right">Depr</th>
+              <th class="text-right">Opening</th>
+              <th class="text-right">Depr</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <h3 class="report-subtitle">4. Schedule of Sales Realization</h3>
+        <table class="report-table" id="preview-sales-table">
+          <thead>
+            <tr>
+              <th>Particulars of Products / Services</th>
+              <th class="text-right">Unit</th>
+              <th class="text-right">Rate / Unit (Rs.)</th>
+              <th class="text-right">Annual Qty</th>
+              <th class="text-right">Sales Revenue (Rs.)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <h3 class="report-subtitle">4.2 Capacity Utilization of Sales Turnovers</h3>
+        <table class="report-table" id="preview-capsales-table">
+          <thead>
+            <tr>
+              <th>Particulars</th>
+              <th class="text-right">1st Year</th>
+              <th class="text-right">2nd Year</th>
+              <th class="text-right">3rd Year</th>
+              <th class="text-right">4th Year</th>
+              <th class="text-right">5th Year</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Page 7: Operating Expenses Details -->
+      <div class="paper-page">
+        <h2 class="report-title">Operational Cost Statements</h2>
+
+        <h3 class="report-subtitle">5. Raw Materials & Consumables Cost</h3>
+        <table class="report-table" id="preview-raw-table">
+          <thead>
+            <tr>
+              <th>Material Particulars</th>
+              <th class="text-right">Unit</th>
+              <th class="text-right">Rate / Unit</th>
+              <th class="text-right">Annual Qty</th>
+              <th class="text-right">Annual Amount (Rs.)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <h3 class="report-subtitle">5.1 Wages Cost (Production Workers)</h3>
+        <table class="report-table" id="preview-wages-table">
+          <thead>
+            <tr>
+              <th>Particulars / Designation</th>
+              <th class="text-right">No. of Workers</th>
+              <th class="text-right">Wages Per Month (Rs.)</th>
+              <th class="text-right">Amount Per Annum (Rs.)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <h3 class="report-subtitle">Salary Details (Administrative Staff)</h3>
+        <table class="report-table" id="preview-salary-table">
+          <thead>
+            <tr>
+              <th>Particulars / Designation</th>
+              <th class="text-right">No. of Staff</th>
+              <th class="text-right">Salary Per Month (Rs.)</th>
+              <th class="text-right">Amount Per Annum (Rs.)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <h3 class="report-subtitle">5.2 Service & Administrative Expenses Scale</h3>
+        <table class="report-table" id="preview-opexscale-table">
+          <thead>
+            <tr>
+              <th>Expense Head</th>
+              <th class="text-right">1st Year</th>
+              <th class="text-right">2nd Year</th>
+              <th class="text-right">3rd Year</th>
+              <th class="text-right">4th Year</th>
+              <th class="text-right">5th Year</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Page 8: Working Capital & P&L Statement -->
+      <div class="paper-page">
+        <h2 class="report-title">Working Capital & Profitability Projections</h2>
+
+        <h3 class="report-subtitle">8. Assessment of Working Capital (Per Cycle)</h3>
+        <table class="report-table" id="preview-wcestimate-table">
+          <thead>
+            <tr>
+              <th>Element of Working Capital</th>
+              <th class="text-right">Stock Days</th>
+              <th>Basis</th>
+              <th class="text-right">Amount (Rs.)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <h3 class="report-subtitle">9.1 Projected Profit & Loss Account</h3>
+        <table class="report-table" id="preview-pl-table">
+          <thead>
+            <tr>
+              <th>Particulars</th>
+              <th class="text-right">1st Year</th>
+              <th class="text-right">2nd Year</th>
+              <th class="text-right">3rd Year</th>
+              <th class="text-right">4th Year</th>
+              <th class="text-right">5th Year</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Page 9: DSCR & Projected Balance Sheet -->
+      <div class="paper-page">
+        <h2 class="report-title">Financial Ratios & Balance Sheets</h2>
+
+        <h3 class="report-subtitle">9.2 Calculation of Debt Service Coverage Ratio (D.S.C.R.)</h3>
+        <table class="report-table" id="preview-dscr-table">
+          <thead>
+            <tr>
+              <th>Particulars</th>
+              <th class="text-right">1st Year</th>
+              <th class="text-right">2nd Year</th>
+              <th class="text-right">3rd Year</th>
+              <th class="text-right">4th Year</th>
+              <th class="text-right">5th Year</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <h3 class="report-subtitle">9.3 Projected Balance Sheet</h3>
+        <table class="report-table" id="preview-bs-table">
+          <thead>
+            <tr>
+              <th>Assets & Liabilities</th>
+              <th class="text-right">1st Year</th>
+              <th class="text-right">2nd Year</th>
+              <th class="text-right">3rd Year</th>
+              <th class="text-right">4th Year</th>
+              <th class="text-right">5th Year</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Page 10: Cash Flow Statement & Break Even Point -->
+      <div class="paper-page">
+        <h2 class="report-title">Cash Flow Statements & BEP Analysis</h2>
+
+        <h3 class="report-subtitle">9.4 Projected Cash Flow Statement</h3>
+        <table class="report-table" id="preview-cf-table">
+          <thead>
+            <tr>
+              <th>Particulars</th>
+              <th class="text-right">1st Year</th>
+              <th class="text-right">2nd Year</th>
+              <th class="text-right">3rd Year</th>
+              <th class="text-right">4th Year</th>
+              <th class="text-right">5th Year</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <h3 class="report-subtitle">9.5 Break Even Point and Ratio Analysis</h3>
+        <table class="report-table" id="preview-ratio-table">
+          <thead>
+            <tr>
+              <th>Particulars / Ratio</th>
+              <th class="text-right">1st Year</th>
+              <th class="text-right">2nd Year</th>
+              <th class="text-right">3rd Year</th>
+              <th class="text-right">4th Year</th>
+              <th class="text-right">5th Year</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <p class="report-paragraph" style="font-size: 11px; margin-top: 30px;">
+          This Project Report has been prepared based on the data and information furnished by the entrepreneur.
+        </p>
+
+        <div class="signature-block">
+          <div>
+            <p>Place: <span class="sig-place">Anjangaon Surji</span></p>
+            <p>Date: 12-06-2026</p>
+          </div>
+          <div class="signature-container">
+            <div class="sig-name">-</div>
+            <div class="signature-box">Signature of the Beneficiary</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
