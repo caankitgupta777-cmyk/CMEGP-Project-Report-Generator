@@ -747,7 +747,7 @@ function calculateDPR() {
   if (d.is_under_8th) {
     d.max_project_limit = d.unit_type === "Manufacturing" ? 1000000 : 500000;
   } else {
-    d.max_project_limit = d.unit_type === "Manufacturing" ? 2500000 : 1000000;
+    d.max_project_limit = d.unit_type === "Manufacturing" ? 5000000 : 2000000;
   }
   
   // Check if project cost violates CMEGP guidelines
@@ -756,10 +756,10 @@ function calculateDPR() {
     d.subsidy_warning = "Should not exceed 5 lakhs Project cost under Service Industry";
   } else if (d.is_under_8th && d.unit_type === "Manufacturing" && d.total_project_cost > 1000000) {
     d.subsidy_warning = "should not exceed 10 lakhs Project cost Manufacturing Industry";
-  } else if (!d.is_under_8th && d.unit_type === "Service" && d.total_project_cost > 1000000) {
-    d.subsidy_warning = "should not exceed 10 lakhs Project cost under Service Industry";
-  } else if (!d.is_under_8th && d.unit_type === "Manufacturing" && d.total_project_cost > 2500000) {
-    d.subsidy_warning = "should not exceed 25lakhs Project cost under Manufacturing Industry";
+  } else if (!d.is_under_8th && d.unit_type === "Service" && d.total_project_cost > 2000000) {
+    d.subsidy_warning = "should not exceed 20 lakhs Project cost under Service Industry";
+  } else if (!d.is_under_8th && d.unit_type === "Manufacturing" && d.total_project_cost > 5000000) {
+    d.subsidy_warning = "should not exceed 50 lakhs Project cost under Manufacturing Industry";
   }
   
   if (d.subsidy_warning) {
