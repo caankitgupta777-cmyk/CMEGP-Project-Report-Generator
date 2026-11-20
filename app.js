@@ -323,11 +323,292 @@ This project focuses on providing durable and decorative tent setups, chairs, ta
 // Global App State
 let state = {};
 
-// Initialize application with a preset (default: car_wash)
-function init() {
+// Active Report Session Metadata
+let currentReportMeta = {
+  id: null,
+  type: null, // 'draft' | 'final' | null
+  projectName: '',
+  applicantName: '',
+  notes: '',
+  lastSavedAt: null,
+  isDirty: false
+};
+
+// ==========================================================================
+// Reports Database Storage Engine (IndexedDB + LocalStorage fallback + Server API sync)
+// ==========================================================================
+const ReportsDB = {
+  dbName: 'CMEGP_Reports_DB',
+  storeName: 'reports',
+  dbVersion: 1,
+  _db: null,
+
+  async init() {
+    return new Promise((resolve) => {
+      try {
+        if (!window.indexedDB) {
+          console.warn("IndexedDB unavailable, falling back to localStorage");
+          resolve(false);
+          return;
+        }
+        const req = indexedDB.open(this.dbName, this.dbVersion);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(this.storeName)) {
+            const store = db.createObjectStore(this.storeName, { keyPath: 'id' });
+            store.createIndex('type', 'type', { unique: false });
+            store.createIndex('updatedAt', 'updatedAt', { unique: false });
+            store.createIndex('projectName', 'projectName', { unique: false });
+          }
+        };
+        req.onsuccess = (e) => {
+          this._db = e.target.result;
+          resolve(true);
+        };
+        req.onerror = (e) => {
+          console.warn("IndexedDB open error, falling back to localStorage", e);
+          resolve(false);
+        };
+      } catch (err) {
+        console.warn("IndexedDB exception, falling back to localStorage", err);
+        resolve(false);
+      }
+    });
+  },
+
+  _getLocalStorage() {
+    try {
+      const data = localStorage.getItem('cmegp_reports_db');
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  _setLocalStorage(list) {
+    try {
+      localStorage.setItem('cmegp_reports_db', JSON.stringify(list));
+    } catch (e) {
+      console.error("LocalStorage write failed:", e);
+    }
+  },
+
+  async _syncWithServer(action, payload) {
+    if (!window.location.protocol.startsWith('http')) return null;
+    try {
+      if (action === 'save') {
+        const res = await fetch('/api/reports', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) return await res.json();
+      } else if (action === 'delete') {
+        await fetch(`/api/reports/${encodeURIComponent(payload)}`, { method: 'DELETE' });
+      } else if (action === 'getAll') {
+        const res = await fetch('/api/reports');
+        if (res.ok) {
+          const data = await res.json();
+          return data.reports || [];
+        }
+      }
+    } catch (err) {
+      // Server may be offline or static hosting - fail gracefully
+    }
+    return null;
+  },
+
+  async getAll() {
+    let localList = [];
+    if (this._db) {
+      localList = await new Promise((resolve) => {
+        try {
+          const tx = this._db.transaction(this.storeName, 'readonly');
+          const store = tx.objectStore(this.storeName);
+          const req = store.getAll();
+          req.onsuccess = () => resolve(req.result || []);
+          req.onerror = () => resolve([]);
+        } catch (e) {
+          resolve([]);
+        }
+      });
+    } else {
+      localList = this._getLocalStorage();
+    }
+
+    // Attempt to merge with server database if connected via HTTP
+    const serverReports = await this._syncWithServer('getAll');
+    if (serverReports && Array.isArray(serverReports) && serverReports.length > 0) {
+      const map = new Map();
+      localList.forEach(r => { if (r && r.id) map.set(r.id, r); });
+      serverReports.forEach(sr => {
+        if (sr && sr.id) {
+          const existing = map.get(sr.id);
+          if (!existing || new Date(sr.updatedAt || 0) > new Date(existing.updatedAt || 0)) {
+            map.set(sr.id, sr);
+            if (this._db) {
+              try {
+                const tx = this._db.transaction(this.storeName, 'readwrite');
+                tx.objectStore(this.storeName).put(sr);
+              } catch (e) {}
+            }
+          }
+        }
+      });
+      localList = Array.from(map.values());
+      this._setLocalStorage(localList);
+    }
+
+    localList.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+    return localList;
+  },
+
+  async get(id) {
+    if (this._db) {
+      return new Promise((resolve) => {
+        try {
+          const tx = this._db.transaction(this.storeName, 'readonly');
+          const store = tx.objectStore(this.storeName);
+          const req = store.get(id);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => resolve(null);
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    } else {
+      const list = this._getLocalStorage();
+      return list.find(r => r.id === id) || null;
+    }
+  },
+
+  async save(report) {
+    if (!report.id) {
+      report.id = 'cmegp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+    }
+    const now = new Date().toISOString();
+    if (!report.createdAt) report.createdAt = now;
+    report.updatedAt = now;
+
+    if (this._db) {
+      await new Promise((resolve) => {
+        try {
+          const tx = this._db.transaction(this.storeName, 'readwrite');
+          const store = tx.objectStore(this.storeName);
+          const req = store.put(report);
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => resolve(null);
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    }
+
+    const list = this._getLocalStorage();
+    const idx = list.findIndex(r => r.id === report.id);
+    if (idx >= 0) {
+      list[idx] = report;
+    } else {
+      list.unshift(report);
+    }
+    this._setLocalStorage(list);
+
+    this._syncWithServer('save', report);
+    return report;
+  },
+
+  async delete(id) {
+    if (this._db) {
+      await new Promise((resolve) => {
+        try {
+          const tx = this._db.transaction(this.storeName, 'readwrite');
+          const store = tx.objectStore(this.storeName);
+          const req = store.delete(id);
+          req.onsuccess = () => resolve(true);
+          req.onerror = () => resolve(false);
+        } catch (e) {
+          resolve(false);
+        }
+      });
+    }
+
+    const list = this._getLocalStorage().filter(r => r.id !== id);
+    this._setLocalStorage(list);
+
+    this._syncWithServer('delete', id);
+    return true;
+  }
+};
+
+// Initialize application with database and a preset (default: car_wash)
+async function init() {
+  const isAndroid = typeof window.AndroidBridge !== 'undefined' || navigator.userAgent.toLowerCase().includes('android');
+  if (isAndroid) {
+    document.body.classList.add("android-app");
+    
+    // Filter template dropdown options to keep only the sample preset
+    const select = document.getElementById("template-preset");
+    if (select) {
+      Array.from(select.options).forEach(opt => {
+        if (opt.value !== "car_wash") {
+          opt.remove();
+        }
+      });
+    }
+
+    // Default mobile layout: show form, hide preview
+    const sidebar = document.querySelector(".sidebar");
+    const preview = document.querySelector(".preview-container");
+    if (sidebar && preview) {
+      sidebar.style.setProperty("display", "flex", "important");
+      preview.style.setProperty("display", "none", "important");
+    }
+  }
+
+  // Initialize persistent database
+  await ReportsDB.init();
+  await updateReportsCountBadge();
+
   setupTabListeners();
   setupPresetListener();
-  loadPreset("blank");
+  loadPreset(isAndroid ? "car_wash" : "blank");
+
+  // Modal keyboard and backdrop dismissal
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeReportsModal();
+      closeSaveFinalModal();
+      closeSummaryModal();
+    }
+  });
+
+  document.querySelectorAll(".cmegp-modal-backdrop").forEach(backdrop => {
+    backdrop.addEventListener("click", (e) => {
+      if (e.target === backdrop) {
+        closeReportsModal();
+        closeSaveFinalModal();
+        closeSummaryModal();
+      }
+    });
+  });
+}
+
+// Global mobile toggle view logic
+function toggleMobileView() {
+  const sidebar = document.querySelector(".sidebar");
+  const preview = document.querySelector(".preview-container");
+  const btn = document.getElementById("mobile-toggle-btn");
+  if (!sidebar || !preview || !btn) return;
+  
+  if (sidebar.style.getPropertyValue("display") === "none") {
+    sidebar.style.setProperty("display", "flex", "important");
+    preview.style.setProperty("display", "none", "important");
+    btn.querySelector("span").textContent = "Show Preview";
+  } else {
+    sidebar.style.setProperty("display", "none", "important");
+    preview.style.setProperty("display", "flex", "important");
+    btn.querySelector("span").textContent = "Show Form";
+  }
 }
 
 // Set up UI Tab switching logic
@@ -396,6 +677,18 @@ function loadPreset(name) {
   // Set initial input listener triggers
   setupInputListeners();
   
+  // Set current report session metadata
+  currentReportMeta = {
+    id: null,
+    type: null,
+    projectName: state.project_name || (name === "blank" ? "Blank Template" : name),
+    applicantName: state.name || '',
+    notes: '',
+    lastSavedAt: null,
+    isDirty: false
+  };
+  updateActiveReportUI();
+
   // Run first calculation
   recalculateAndRender();
 }
@@ -476,6 +769,8 @@ function addRow(tableName, cols) {
   if (!state[tableName]) state[tableName] = [];
   state[tableName].push(newRow);
   renderFormTable(tableName, cols);
+  currentReportMeta.isDirty = true;
+  updateActiveReportUI();
   recalculateAndRender();
 }
 
@@ -508,6 +803,8 @@ function handleInputChange(e) {
   }
   
   state[key] = val;
+  currentReportMeta.isDirty = true;
+  updateActiveReportUI();
   
   // Enable or disable override inputs based on override check
   if (key === "override_financing") {
@@ -1213,6 +1510,11 @@ function renderPreviewHTML(d) {
   places.forEach(el => {
     el.innerText = d.place || "-";
   });
+  // Signature blocks Name rendering
+  const sigNames = document.querySelectorAll(".sig-name");
+  sigNames.forEach(el => {
+    el.innerText = d.name || "-";
+  });
   setText("p1-agency", d.agency);
   setText("p1-applicant", d.name);
   setText("p1-district", d.district);
@@ -1883,6 +2185,898 @@ function exportToExcel() {
 
   const fileName = (d.project_name || "CMEGP_Project").replace(/\s+/g, "_") + "_Report.xlsx";
   XLSX.writeFile(wb, fileName);
+}
+
+// Export data to a formatted Word document (.doc)
+function exportToWord() {
+  const preview = document.querySelector('.preview-container');
+  if (!preview) {
+    alert("Preview content not found.");
+    return;
+  }
+  
+  // Clone the preview container to modify elements for Word formatting without affecting the live UI
+  const cloned = preview.cloneNode(true);
+  
+  // 1. Convert Cover Page Footer to a table layout (since Word doesn't support Flexbox)
+  const coverFooter = cloned.querySelector('.cover-footer');
+  if (coverFooter) {
+    const leftContent = coverFooter.querySelector('.cover-footer-left')?.innerHTML || '';
+    const rightContent = coverFooter.querySelector('.cover-footer-right')?.innerHTML || '';
+    coverFooter.innerHTML = `
+      <table class="cover-footer-table" style="width: 100%; border-collapse: collapse; border: none; border-top: 1px solid #d1d5db; margin-top: 60pt; padding-top: 15pt;">
+        <tr>
+          <td style="border: none; padding: 10pt 0 0 0; vertical-align: top; width: 50%; text-align: left;">
+            ${leftContent}
+          </td>
+          <td style="border: none; padding: 10pt 0 0 0; vertical-align: top; width: 50%; text-align: left;">
+            ${rightContent}
+          </td>
+        </tr>
+      </table>
+    `;
+  }
+  
+  // 2. Convert all Signature Blocks to table layout
+  const sigBlocks = cloned.querySelectorAll('.signature-block');
+  sigBlocks.forEach(sigBlock => {
+    const leftDiv = sigBlock.querySelector('div:first-child');
+    const rightContainer = sigBlock.querySelector('.signature-container');
+    const nameEl = rightContainer ? rightContainer.querySelector('.sig-name') : null;
+    const boxEl = sigBlock.querySelector('.signature-box');
+    
+    if (leftDiv && boxEl) {
+      const leftContent = leftDiv.innerHTML;
+      const boxContent = boxEl.innerHTML;
+      const nameContent = nameEl ? nameEl.innerHTML : '';
+      
+      const rightContent = nameContent 
+        ? `<div style="font-weight: bold; text-align: center; width: 200px; display: inline-block; margin-bottom: 30pt;">${nameContent}</div><br/>
+           <div style="border-top: 1px dashed #4b5563; padding-top: 8pt; font-weight: bold; display: inline-block; width: 200px; text-align: center;">${boxContent}</div>`
+        : `<div style="border-top: 1px dashed #4b5563; padding-top: 8pt; font-weight: bold; display: inline-block; width: 200px; text-align: center;">${boxContent}</div>`;
+        
+      sigBlock.innerHTML = `
+        <table class="sig-table" style="width: 100%; border-collapse: collapse; border: none; margin-top: 40pt; margin-bottom: 15pt;">
+          <tr>
+            <td style="border: none; padding: 0; vertical-align: bottom; width: 55%; text-align: left;">
+              ${leftContent}
+            </td>
+            <td style="border: none; padding: 0; vertical-align: bottom; width: 45%; text-align: right;">
+              ${rightContent}
+            </td>
+          </tr>
+        </table>
+      `;
+    }
+  });
+
+  // Get the HTML representation of all pages
+  const pages = cloned.querySelectorAll('.paper-page');
+  let bodyContent = '';
+  
+  pages.forEach((page, index) => {
+    // Add page break before every page except the first
+    if (index > 0) {
+      bodyContent += `<br style="page-break-before: always; clear: both;" />`;
+    }
+    bodyContent += `<div class="paper-page-word">${page.innerHTML}</div>`;
+  });
+
+  // Word XML / HTML headers and styling
+  const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' 
+                        xmlns:w='urn:schemas-microsoft-com:office:word' 
+                        xmlns='http://www.w3.org/TR/REC-html40'>
+  <head>
+    <meta charset='utf-8'>
+    <!--[if gte mso 9]>
+    <xml>
+      <w:WordDocument>
+        <w:View>Print</w:View>
+        <w:Zoom>100</w:Zoom>
+        <w:DoNotOptimizeForBrowser/>
+      </w:WordDocument>
+    </xml>
+    <![endif]-->
+    <style>
+      @page {
+        size: A4;
+        margin: 2cm 2cm 2cm 2cm;
+      }
+      body {
+        font-family: 'Calibri', 'Arial', sans-serif;
+        font-size: 11pt;
+        line-height: 1.4;
+        color: #1f2937;
+      }
+      .paper-page-word {
+        margin-bottom: 20pt;
+      }
+      
+      /* Cover Page Styles */
+      .cover-page {
+        border: 4px double #374151;
+        padding: 30pt;
+        text-align: center;
+      }
+      .cover-header {
+        margin-top: 20pt;
+      }
+      .cover-scheme-title {
+        font-size: 15pt;
+        font-weight: bold;
+        text-transform: uppercase;
+        color: #1e3a8a;
+        border-bottom: 2px solid #1e3a8a;
+        padding-bottom: 10pt;
+        margin-bottom: 10pt;
+      }
+      .cover-tagline {
+        font-size: 9pt;
+        font-weight: bold;
+        color: #6b7280;
+        text-transform: uppercase;
+      }
+      .cover-title-box {
+        margin-top: 100pt;
+        margin-bottom: 120pt;
+      }
+      .cover-pre-title {
+        font-size: 14pt;
+        text-transform: uppercase;
+        color: #4b5563;
+      }
+      .cover-title {
+        font-size: 24pt;
+        font-weight: bold;
+        color: #1e3a8a;
+        margin-top: 15pt;
+        text-transform: uppercase;
+      }
+      .cover-footer-left h4, .cover-footer-right h4 {
+        font-size: 10pt;
+        color: #4b5563;
+        margin-bottom: 6pt;
+        text-transform: uppercase;
+        font-weight: bold;
+      }
+      .cover-footer-left p, .cover-footer-right p {
+        font-size: 11pt;
+        font-weight: bold;
+        color: #111827;
+        margin: 0 0 4pt 0;
+      }
+
+      /* Report Typography */
+      h2.report-title {
+        font-size: 16pt;
+        font-weight: bold;
+        color: #111827;
+        text-align: center;
+        text-transform: uppercase;
+        margin-bottom: 18pt;
+        border-bottom: 2px solid #111827;
+        padding-bottom: 6pt;
+        margin-top: 0pt;
+      }
+      h3.report-subtitle {
+        font-size: 12pt;
+        font-weight: bold;
+        color: #1e3a8a;
+        text-transform: uppercase;
+        margin-top: 20pt;
+        margin-bottom: 10pt;
+        border-bottom: 1px solid #d1d5db;
+        padding-bottom: 4pt;
+      }
+      p.report-paragraph {
+        font-size: 11pt;
+        line-height: 1.4;
+        color: #374151;
+        text-align: justify;
+        margin-bottom: 12pt;
+      }
+
+      /* Table Styles */
+      table.report-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 15pt;
+        font-size: 9.5pt;
+      }
+      table.report-table th, table.report-table td {
+        border: 1px solid #9ca3af;
+        padding: 5pt 7pt;
+        text-align: left;
+      }
+      table.report-table th {
+        background-color: #f3f4f6;
+        font-weight: bold;
+        color: #111827;
+        text-transform: uppercase;
+      }
+      table.report-table tr.total-row {
+        font-weight: bold;
+        background-color: #f9fafb;
+      }
+      table.report-table td.num {
+        text-align: right;
+      }
+      .text-center { text-align: center; }
+      .text-right { text-align: right; }
+      .bold { font-weight: bold; }
+      .indent-1 { padding-left: 15pt; }
+      .indent-2 { padding-left: 30pt; }
+    </style>
+  </head>
+  <body>`;
+  
+  const footer = `</body></html>`;
+  
+  const finalContent = header + bodyContent + footer;
+  
+  // Use BOM character \ufeff to force UTF-8 encoding so Indian Rupee symbols (Rs. or ₹) render correctly in MS Word
+  const blob = new Blob(['\ufeff', finalContent], {
+    type: 'application/msword;charset=utf-8'
+  });
+  
+  const d = calculateDPR();
+  const fileName = (d.project_name || "CMEGP_Project").replace(/\s+/g, "_") + "_Report.doc";
+  
+  // Trigger browser download
+  if (navigator.msSaveOrOpenBlob) {
+    navigator.msSaveOrOpenBlob(blob, fileName);
+  } else {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+}
+
+// ==========================================================================
+// CMEGP Report Database & Management UI Methods
+// ==========================================================================
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function formatDateTime(isoString) {
+  if (!isoString) return '';
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return isoString;
+    return d.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (e) {
+    return isoString;
+  }
+}
+
+function updateActiveReportUI() {
+  const badge = document.getElementById("active-report-badge");
+  const nameEl = document.getElementById("active-report-name");
+  if (!badge || !nameEl) return;
+
+  const projName = state.project_name || currentReportMeta.projectName || "Blank Template";
+  nameEl.textContent = projName;
+
+  badge.className = "status-badge";
+  if (!currentReportMeta.id) {
+    badge.classList.add("badge-new");
+    badge.textContent = currentReportMeta.isDirty ? "Unsaved *" : "New Project";
+  } else if (currentReportMeta.type === 'draft') {
+    badge.classList.add("badge-draft");
+    badge.textContent = currentReportMeta.isDirty ? "Draft *" : "Draft";
+  } else if (currentReportMeta.type === 'final') {
+    badge.classList.add("badge-final");
+    badge.textContent = currentReportMeta.isDirty ? "Final *" : "Final Report";
+  }
+}
+
+async function updateReportsCountBadge() {
+  const countEl = document.getElementById("saved-reports-count");
+  if (!countEl) return;
+  const reports = await ReportsDB.getAll();
+  countEl.textContent = reports.length;
+}
+
+// 1. Save Draft Report
+async function handleSaveDraft() {
+  const d = calculateDPR();
+  let projectName = (state.project_name || "").trim();
+  
+  if (!projectName) {
+    const entered = prompt("Enter a Project / Business name for this draft:", "My CMEGP Project");
+    if (entered === null) return;
+    projectName = entered.trim() || "Untitled Draft Project";
+    state.project_name = projectName;
+    const nameInput = document.getElementById("in-project_name");
+    if (nameInput) nameInput.value = projectName;
+  }
+
+  const applicantName = (state.name || "").trim();
+  const summary = {
+    totalProjectCost: d.total_project_cost || 0,
+    ownContribution: d.own_contribution || 0,
+    termLoan: d.term_loan || 0,
+    workingCapital: d.total_wc_requirement || 0,
+    subsidy: d.subsidy || 0,
+    unitType: d.unit_type || "Service",
+    category: d.category || "General",
+    agency: d.agency || "DIC",
+    district: d.district || "",
+    taluka: d.taluka || "",
+    avgDSCR: d.dscr_avg || 0
+  };
+
+  const reportId = currentReportMeta.id || ('cmegp_draft_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6));
+
+  const report = {
+    id: reportId,
+    type: 'draft',
+    projectName: projectName,
+    applicantName: applicantName || "N/A",
+    notes: currentReportMeta.notes || '',
+    summary: summary,
+    state: JSON.parse(JSON.stringify(state))
+  };
+
+  await ReportsDB.save(report);
+
+  currentReportMeta = {
+    id: report.id,
+    type: 'draft',
+    projectName: projectName,
+    applicantName: applicantName,
+    notes: report.notes,
+    lastSavedAt: new Date(),
+    isDirty: false
+  };
+
+  updateActiveReportUI();
+  await updateReportsCountBadge();
+  showToast(`💾 Draft saved to database: "${projectName}"`, 'draft');
+}
+
+// 2. Save Final Report
+function openSaveFinalModal() {
+  const d = calculateDPR();
+  
+  // Update snapshot indicators
+  setText("snap-cost", "₹ " + formatINR(d.total_project_cost || 0));
+  setText("snap-loan", "₹ " + formatINR(d.term_loan || 0));
+  setText("snap-subsidy", "₹ " + formatINR(d.subsidy || 0));
+  setText("snap-own", "₹ " + formatINR(d.own_contribution || 0));
+
+  const projInput = document.getElementById("final-project-name");
+  if (projInput) projInput.value = state.project_name || "";
+
+  const appInput = document.getElementById("final-applicant-name");
+  if (appInput) appInput.value = state.name || "";
+
+  const notesInput = document.getElementById("final-report-notes");
+  if (notesInput) notesInput.value = currentReportMeta.notes || "";
+
+  const saveModeOpt = document.getElementById("save-mode-option");
+  const saveAsNewCheck = document.getElementById("save-as-new-checkbox");
+  if (saveModeOpt && saveAsNewCheck) {
+    if (currentReportMeta.id) {
+      saveModeOpt.style.display = "block";
+      saveAsNewCheck.checked = false;
+    } else {
+      saveModeOpt.style.display = "none";
+      saveAsNewCheck.checked = false;
+    }
+  }
+
+  const modal = document.getElementById("modal-save-final");
+  if (modal) modal.style.display = "flex";
+}
+
+function closeSaveFinalModal() {
+  const modal = document.getElementById("modal-save-final");
+  if (modal) modal.style.display = "none";
+}
+
+async function confirmSaveFinalReport() {
+  const projInput = document.getElementById("final-project-name");
+  const projectName = (projInput ? projInput.value : "").trim();
+  if (!projectName) {
+    alert("Please enter a Project / Business Title to save the Final Report.");
+    if (projInput) projInput.focus();
+    return;
+  }
+
+  const appInput = document.getElementById("final-applicant-name");
+  const applicantName = (appInput ? appInput.value : "").trim();
+
+  const notesInput = document.getElementById("final-report-notes");
+  const notes = notesInput ? notesInput.value.trim() : "";
+
+  const saveAsNewCheck = document.getElementById("save-as-new-checkbox");
+  const saveAsNew = saveAsNewCheck && saveAsNewCheck.checked;
+
+  state.project_name = projectName;
+  if (applicantName) state.name = applicantName;
+  const inProj = document.getElementById("in-project_name");
+  if (inProj) inProj.value = projectName;
+  const inName = document.getElementById("in-name");
+  if (inName && applicantName) inName.value = applicantName;
+
+  const d = calculateDPR();
+  const summary = {
+    totalProjectCost: d.total_project_cost || 0,
+    ownContribution: d.own_contribution || 0,
+    termLoan: d.term_loan || 0,
+    workingCapital: d.total_wc_requirement || 0,
+    subsidy: d.subsidy || 0,
+    unitType: d.unit_type || "Service",
+    category: d.category || "General",
+    agency: d.agency || "DIC",
+    district: d.district || "",
+    taluka: d.taluka || "",
+    avgDSCR: d.dscr_avg || 0
+  };
+
+  const reportId = (saveAsNew || !currentReportMeta.id) 
+    ? ('cmegp_final_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6))
+    : currentReportMeta.id;
+
+  const report = {
+    id: reportId,
+    type: 'final',
+    projectName: projectName,
+    applicantName: applicantName || state.name || "N/A",
+    notes: notes,
+    summary: summary,
+    state: JSON.parse(JSON.stringify(state))
+  };
+
+  await ReportsDB.save(report);
+
+  currentReportMeta = {
+    id: report.id,
+    type: 'final',
+    projectName: projectName,
+    applicantName: applicantName,
+    notes: notes,
+    lastSavedAt: new Date(),
+    isDirty: false
+  };
+
+  closeSaveFinalModal();
+  updateActiveReportUI();
+  await updateReportsCountBadge();
+  recalculateAndRender();
+  showToast(`✅ Final Report saved to database: "${projectName}"`, 'success');
+}
+
+// 3. Saved Reports Database Explorer
+let currentFilter = 'all';
+let currentSearchQuery = '';
+
+async function openReportsModal() {
+  const modal = document.getElementById("modal-saved-reports");
+  if (modal) modal.style.display = "flex";
+  currentFilter = 'all';
+  currentSearchQuery = '';
+  const searchInput = document.getElementById("report-search-input");
+  if (searchInput) searchInput.value = '';
+  
+  document.querySelectorAll(".filter-tab").forEach(tab => {
+    tab.classList.toggle("active", tab.dataset.filter === 'all');
+  });
+
+  await refreshReportsModal();
+}
+
+function closeReportsModal() {
+  const modal = document.getElementById("modal-saved-reports");
+  if (modal) modal.style.display = "none";
+}
+
+async function filterReports(filterType) {
+  currentFilter = filterType;
+  document.querySelectorAll(".filter-tab").forEach(tab => {
+    tab.classList.toggle("active", tab.dataset.filter === filterType);
+  });
+  await refreshReportsModal();
+}
+
+function handleReportSearch() {
+  const input = document.getElementById("report-search-input");
+  currentSearchQuery = (input ? input.value : "").toLowerCase().trim();
+  refreshReportsModal();
+}
+
+async function refreshReportsModal() {
+  const allReports = await ReportsDB.getAll();
+  
+  const draftsCount = allReports.filter(r => r.type === 'draft').length;
+  const finalsCount = allReports.filter(r => r.type === 'final').length;
+  setText("count-filter-all", allReports.length);
+  setText("count-filter-draft", draftsCount);
+  setText("count-filter-final", finalsCount);
+  setText("saved-reports-count", allReports.length);
+
+  let filtered = allReports;
+  if (currentFilter === 'draft') {
+    filtered = filtered.filter(r => r.type === 'draft');
+  } else if (currentFilter === 'final') {
+    filtered = filtered.filter(r => r.type === 'final');
+  }
+
+  if (currentSearchQuery) {
+    filtered = filtered.filter(r => {
+      const pName = (r.projectName || "").toLowerCase();
+      const aName = (r.applicantName || "").toLowerCase();
+      const dist = (r.summary && r.summary.district ? r.summary.district : "").toLowerCase();
+      const notes = (r.notes || "").toLowerCase();
+      return pName.includes(currentSearchQuery) || 
+             aName.includes(currentSearchQuery) || 
+             dist.includes(currentSearchQuery) || 
+             notes.includes(currentSearchQuery);
+    });
+  }
+
+  renderReportsList(filtered);
+}
+
+function renderReportsList(reports) {
+  const container = document.getElementById("saved-reports-list-container");
+  if (!container) return;
+  
+  if (reports.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">🗄️</div>
+        <h3>No Reports Found</h3>
+        <p>No saved reports match your current filter or search criteria. Use <strong>Save Draft</strong> or <strong>Save Final Report</strong> from the top bar to save reports in the database for future reference.</p>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="startNewBlankReport()">Start a New Project</button>
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  reports.forEach(rep => {
+    const isDraft = rep.type === 'draft';
+    const badgeClass = isDraft ? 'badge-draft' : 'badge-final';
+    const badgeLabel = isDraft ? 'DRAFT' : 'FINAL REPORT';
+    const isCurrent = currentReportMeta.id === rep.id;
+    const dateFormatted = formatDateTime(rep.updatedAt || rep.createdAt);
+    const sum = rep.summary || {};
+    
+    html += `
+      <div class="report-card ${isCurrent ? 'card-active-dpr' : ''}" id="card-${rep.id}">
+        <div class="card-top">
+          <div class="card-main-info">
+            <div class="card-project-title">
+              <span>${escapeHtml(rep.projectName || 'Untitled Project')}</span>
+              <span class="status-badge ${badgeClass}">${badgeLabel}</span>
+              ${isCurrent ? '<span style="font-size: 10px; color: var(--color-primary); font-weight: bold;">(Current)</span>' : ''}
+            </div>
+            <div class="card-promoter">
+              Promoter: <strong>${escapeHtml(rep.applicantName || 'N/A')}</strong> • Category: ${escapeHtml(sum.category || 'General')} • Agency: ${escapeHtml(sum.agency || 'DIC')}
+            </div>
+          </div>
+          <div class="card-meta-right">
+            <span class="card-date">${dateFormatted}</span>
+          </div>
+        </div>
+
+        <div class="card-chips">
+          <span class="card-chip">Project Cost: <strong>₹ ${formatINR(sum.totalProjectCost || 0)}</strong></span>
+          <span class="card-chip">Term Loan: <strong>₹ ${formatINR(sum.termLoan || 0)}</strong></span>
+          <span class="card-chip">Subsidy: <strong>₹ ${formatINR(sum.subsidy || 0)}</strong></span>
+          <span class="card-chip">Own Margin: <strong>₹ ${formatINR(sum.ownContribution || 0)}</strong></span>
+          ${sum.avgDSCR ? `<span class="card-chip">Avg DSCR: <strong>${sum.avgDSCR}</strong></span>` : ''}
+        </div>
+
+        ${rep.notes ? `<div class="card-notes">📝 ${escapeHtml(rep.notes)}</div>` : ''}
+
+        <div class="card-actions">
+          <button type="button" class="btn-card-action" onclick="openReportSummary('${rep.id}')" title="View financial breakdown">
+            <span>📊 Summary</span>
+          </button>
+          <button type="button" class="btn-card-action" onclick="duplicateReportById('${rep.id}')" title="Duplicate as a new draft">
+            <span>📄 Duplicate</span>
+          </button>
+          <button type="button" class="btn-card-action" onclick="exportSingleReportJSON('${rep.id}')" title="Export this report as JSON">
+            <span>⬇ JSON</span>
+          </button>
+          <button type="button" class="btn-card-action btn-card-danger" onclick="deleteReportById('${rep.id}')" title="Delete from database">
+            <span>🗑 Delete</span>
+          </button>
+          <button type="button" class="btn-card-action btn-card-load" onclick="loadReportById('${rep.id}')" title="Load into editor">
+            <span>📂 Open Report</span>
+          </button>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+// 4. Report Operations: Load, Delete, Duplicate, Summary
+async function loadReportById(id, confirmIfDirty = true) {
+  if (confirmIfDirty && currentReportMeta.isDirty) {
+    if (!confirm("You have unsaved changes in the current report. Do you want to load this report and discard unsaved changes?")) {
+      return;
+    }
+  }
+
+  const report = await ReportsDB.get(id);
+  if (!report) {
+    alert("Report not found in database.");
+    return;
+  }
+
+  loadReportData(report);
+  closeReportsModal();
+  showToast(`📂 Loaded ${report.type === 'final' ? 'Final Report' : 'Draft'}: "${report.projectName}"`, 'info');
+}
+
+function loadReportData(report) {
+  if (!report || !report.state) return;
+  state = JSON.parse(JSON.stringify(report.state));
+  
+  const keys = [
+    "name", "father", "project_name", "qualification_academic", "qualification_technical",
+    "gender", "agency", "category", "unit_type", "district", "taluka", "pin", "mobile", "email",
+    "land_type", "land_val", "preop_cost", "furniture_cost", "contingency_cost", "rent_pm",
+    "interest_rate", "payback_period", "moratorium_period", "receivables_days", "raw_material_days",
+    "sip_days", "finished_goods_days", "tax_rate", "workshed_rent",
+    "maint_pct", "power_pct", "overhead_pct", "phone_pct", "stationery_pct", "adv_pct", "misc_pct",
+    "depr_building", "depr_machinery", "override_financing", "custom_own_contrib", "custom_term_loan",
+    "wc_raw_material_val", "power_hp", "project_intro", "promoter_about", "place"
+  ];
+  
+  keys.forEach(k => {
+    const el = document.getElementById(`in-${k}`);
+    if (el) {
+      if (el.type === "checkbox") {
+        el.checked = !!state[k];
+      } else {
+        el.value = state[k] !== undefined ? state[k] : "";
+      }
+    }
+  });
+
+  renderFormTable("workshed", ["particulars", "area", "rate", "amount"]);
+  renderFormTable("machinery", ["particulars", "qty", "rate", "amount"]);
+  renderFormTable("sales", ["particulars", "unit", "rate_unit", "qty", "amount"]);
+  renderFormTable("raw_material", ["particulars", "unit", "rate", "qty", "amount"]);
+  renderFormTable("wages", ["particulars", "no_workers", "wages_pm"]);
+  renderFormTable("salary", ["particulars", "no_staff", "salary_pm"]);
+
+  setupInputListeners();
+  recalculateAndRender();
+
+  currentReportMeta = {
+    id: report.id,
+    type: report.type,
+    projectName: report.projectName || state.project_name || "Untitled",
+    applicantName: report.applicantName || state.name || "",
+    notes: report.notes || "",
+    lastSavedAt: new Date(report.updatedAt || report.createdAt),
+    isDirty: false
+  };
+
+  updateActiveReportUI();
+}
+
+async function deleteReportById(id) {
+  const report = await ReportsDB.get(id);
+  const name = report ? report.projectName : "this report";
+  if (!confirm(`Are you sure you want to delete "${name}" from the database? This cannot be undone.`)) {
+    return;
+  }
+
+  await ReportsDB.delete(id);
+  if (currentReportMeta.id === id) {
+    currentReportMeta.id = null;
+    currentReportMeta.type = null;
+    currentReportMeta.isDirty = true;
+    updateActiveReportUI();
+  }
+
+  await refreshReportsModal();
+  showToast(`🗑 Deleted "${name}" from database`, 'danger');
+}
+
+async function duplicateReportById(id) {
+  const report = await ReportsDB.get(id);
+  if (!report) return;
+
+  const clone = JSON.parse(JSON.stringify(report));
+  clone.id = 'cmegp_draft_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+  clone.type = 'draft';
+  clone.projectName = (clone.projectName || 'Project') + ' (Copy)';
+  if (clone.state) clone.state.project_name = clone.projectName;
+  clone.createdAt = new Date().toISOString();
+  clone.updatedAt = clone.createdAt;
+
+  await ReportsDB.save(clone);
+  await refreshReportsModal();
+  showToast(`📄 Duplicated as draft: "${clone.projectName}"`, 'info');
+}
+
+async function openReportSummary(id) {
+  const report = await ReportsDB.get(id);
+  if (!report) return;
+
+  const sum = report.summary || {};
+  setText("summary-modal-title", `📊 ${report.projectName || 'Project Summary'}`);
+  setText("summary-modal-subtitle", `Promoter: ${report.applicantName || 'N/A'} • ${report.type === 'final' ? 'Final Report' : 'Draft'}`);
+
+  const content = document.getElementById("summary-modal-content");
+  if (content) {
+    content.innerHTML = `
+      <div class="final-report-snapshot" style="margin-bottom: 16px;">
+        <div class="snapshot-item">
+          <div class="snapshot-label">Total Project Cost</div>
+          <div class="snapshot-val">₹ ${formatINR(sum.totalProjectCost || 0)}</div>
+        </div>
+        <div class="snapshot-item">
+          <div class="snapshot-label">Bank Term Loan</div>
+          <div class="snapshot-val">₹ ${formatINR(sum.termLoan || 0)}</div>
+        </div>
+        <div class="snapshot-item">
+          <div class="snapshot-label">Margin Subsidy</div>
+          <div class="snapshot-val">₹ ${formatINR(sum.subsidy || 0)}</div>
+        </div>
+        <div class="snapshot-item">
+          <div class="snapshot-label">Promoter Margin</div>
+          <div class="snapshot-val">₹ ${formatINR(sum.ownContribution || 0)}</div>
+        </div>
+      </div>
+      <table class="report-table" style="font-size: 11px;">
+        <tbody>
+          <tr><td><strong>Unit Classification</strong></td><td>${escapeHtml(sum.unitType || 'Service')}</td></tr>
+          <tr><td><strong>Social Category</strong></td><td>${escapeHtml(sum.category || 'General')}</td></tr>
+          <tr><td><strong>Sponsoring Agency</strong></td><td>${escapeHtml(sum.agency || 'DIC')}</td></tr>
+          <tr><td><strong>Working Capital Requirement</strong></td><td>₹ ${formatINR(sum.workingCapital || 0)}</td></tr>
+          <tr><td><strong>Avg Debt Service Coverage (DSCR)</strong></td><td>${sum.avgDSCR || 'N/A'}</td></tr>
+          <tr><td><strong>Last Saved</strong></td><td>${formatDateTime(report.updatedAt || report.createdAt)}</td></tr>
+          ${report.notes ? `<tr><td><strong>Notes</strong></td><td>${escapeHtml(report.notes)}</td></tr>` : ''}
+        </tbody>
+      </table>
+    `;
+  }
+
+  const loadBtn = document.getElementById("summary-load-btn");
+  if (loadBtn) {
+    loadBtn.onclick = () => {
+      closeSummaryModal();
+      loadReportById(id);
+    };
+  }
+
+  const modal = document.getElementById("modal-report-summary");
+  if (modal) modal.style.display = "flex";
+}
+
+function closeSummaryModal() {
+  const modal = document.getElementById("modal-report-summary");
+  if (modal) modal.style.display = "none";
+}
+
+async function exportDatabaseBackup() {
+  const reports = await ReportsDB.getAll();
+  const jsonStr = JSON.stringify(reports, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const fileName = `CMEGP_Reports_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+  
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`⬇ Exported ${reports.length} report(s) to ${fileName}`, 'info');
+}
+
+async function exportSingleReportJSON(id) {
+  const report = await ReportsDB.get(id);
+  if (!report) return;
+  const jsonStr = JSON.stringify(report, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const fileName = `${(report.projectName || 'Report').replace(/\s+/g, '_')}_${report.type}.json`;
+  
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`⬇ Exported "${fileName}"`, 'info');
+}
+
+async function importDatabaseBackup(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      const list = Array.isArray(parsed) ? parsed : [parsed];
+      let importedCount = 0;
+      for (const item of list) {
+        if (item && item.state) {
+          if (!item.id) item.id = 'cmegp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+          await ReportsDB.save(item);
+          importedCount++;
+        }
+      }
+      await refreshReportsModal();
+      showToast(`⬆ Successfully imported ${importedCount} report(s) into database!`, 'success');
+    } catch (err) {
+      alert("Error importing file: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function startNewBlankReport() {
+  if (currentReportMeta.isDirty) {
+    if (!confirm("You have unsaved changes in the current report. Start a new blank report?")) {
+      return;
+    }
+  }
+  closeReportsModal();
+  loadPreset("blank");
+  currentReportMeta = {
+    id: null,
+    type: null,
+    projectName: 'Blank Template',
+    applicantName: '',
+    notes: '',
+    lastSavedAt: null,
+    isDirty: false
+  };
+  updateActiveReportUI();
+  showToast("Started new blank CMEGP project report", 'info');
+}
+
+function showToast(message, type = 'info', duration = 3500) {
+  const container = document.getElementById("toast-container");
+  if (!container) return;
+
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `<span>${message}</span>`;
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.animation = "toastSlideOut 0.25s forwards";
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 250);
+  }, duration);
 }
 
 // Window load init

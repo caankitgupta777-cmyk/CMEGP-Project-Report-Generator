@@ -17,8 +17,15 @@
       <div>
         <h1>CMEGP DPR Generator</h1>
       </div>
+      <div id="active-report-pill" class="active-report-pill" onclick="openReportsModal()" title="Current report status. Click to open database.">
+        <span id="active-report-badge" class="status-badge badge-new">New Report</span>
+        <span id="active-report-name" class="active-report-name">Blank Template</span>
+      </div>
     </div>
     <div class="header-controls">
+      <button id="mobile-toggle-btn" class="btn btn-secondary" onclick="toggleMobileView()" style="display: none;">
+        <span>Show Preview</span>
+      </button>
       <div class="preset-selector">
         <label for="template-preset">Load Template:</label>
         <select id="template-preset">
@@ -29,8 +36,23 @@
           <option value="mandap">Jay Gajanan Bichayat Kendra (Mandap)</option>
         </select>
       </div>
+
+      <!-- Report Database & Persistence Actions -->
+      <button id="btn-save-draft" class="btn btn-draft" onclick="handleSaveDraft()" title="Save current work as a draft in the database">
+        <span>💾 Save Draft</span>
+      </button>
+      <button id="btn-save-final" class="btn btn-final" onclick="openSaveFinalModal()" title="Save finalized report to database for future reference">
+        <span>✅ Save Final Report</span>
+      </button>
+      <button id="btn-saved-reports" class="btn btn-database" onclick="openReportsModal()" title="View and manage saved drafts and final reports">
+        <span>📁 Saved Reports <span id="saved-reports-count" class="badge">0</span></span>
+      </button>
+
       <button class="btn btn-success" onclick="printReport()">
         <span>Print Report / Save PDF</span>
+      </button>
+      <button class="btn btn-word" onclick="exportToWord()">
+        <span>Download Word</span>
       </button>
       <button class="btn btn-excel" onclick="exportToExcel()">
         <span>Download Excel</span>
@@ -638,7 +660,10 @@
             <p>Place: <span class="sig-place">Anjangaon Surji</span></p>
             <p>Date: 12-06-2026</p>
           </div>
-          <div class="signature-box">Signature of the Beneficiary</div>
+          <div class="signature-container">
+            <div class="sig-name">-</div>
+            <div class="signature-box">Signature of the Beneficiary</div>
+          </div>
         </div>
       </div>
 
@@ -725,7 +750,10 @@ Mr. Shubham Mahadev Huskal is the promoter of the proposed enterprise Samarth Ca
             <p>Place: <span class="sig-place">Anjangaon Surji</span></p>
             <p>Date: 12-06-2026</p>
           </div>
-          <div class="signature-box">Signature of the Beneficiary</div>
+          <div class="signature-container">
+            <div class="sig-name">-</div>
+            <div class="signature-box">Signature of the Beneficiary</div>
+          </div>
         </div>
       </div>
 
@@ -986,12 +1014,167 @@ Mr. Shubham Mahadev Huskal is the promoter of the proposed enterprise Samarth Ca
             <p>Place: <span class="sig-place">Anjangaon Surji</span></p>
             <p>Date: 12-06-2026</p>
           </div>
-          <div class="signature-box">Signature of the Beneficiary</div>
+          <div class="signature-container">
+            <div class="sig-name">-</div>
+            <div class="signature-box">Signature of the Beneficiary</div>
+          </div>
         </div>
       </div>
 
     </div>
   </main>
+
+  <!-- ==========================================================================
+       Saved Reports Database Explorer Modal
+       ========================================================================== -->
+  <div id="modal-saved-reports" class="cmegp-modal-backdrop" style="display: none;">
+    <div class="cmegp-modal cmegp-modal-lg">
+      <div class="cmegp-modal-header">
+        <div class="modal-header-title">
+          <h2>📁 Saved Reports Database</h2>
+          <p>Browse, restore, or export your saved drafts and final project reports for future reference.</p>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeReportsModal()">&times;</button>
+      </div>
+      
+      <div class="modal-toolbar">
+        <div class="filter-tabs">
+          <button type="button" class="filter-tab active" data-filter="all" onclick="filterReports('all')">
+            All Reports <span id="count-filter-all" class="filter-badge">0</span>
+          </button>
+          <button type="button" class="filter-tab" data-filter="draft" onclick="filterReports('draft')">
+            Drafts <span id="count-filter-draft" class="filter-badge">0</span>
+          </button>
+          <button type="button" class="filter-tab" data-filter="final" onclick="filterReports('final')">
+            Final Reports <span id="count-filter-final" class="filter-badge">0</span>
+          </button>
+        </div>
+        
+        <div class="modal-search-box">
+          <input type="text" id="report-search-input" placeholder="Search by project name, promoter, district..." oninput="handleReportSearch()">
+        </div>
+      </div>
+
+      <div class="modal-actions-bar">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="startNewBlankReport()">
+          <span>+ New Blank Report</span>
+        </button>
+        <div class="modal-backup-tools">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="exportDatabaseBackup()" title="Download JSON backup of all saved reports">
+            <span>⬇ Export All (JSON)</span>
+          </button>
+          <label class="btn btn-secondary btn-sm" style="cursor: pointer;" title="Import previously exported reports JSON">
+            <span>⬆ Import Backup</span>
+            <input type="file" id="backup-file-input" accept=".json" style="display: none;" onchange="importDatabaseBackup(event)">
+          </label>
+        </div>
+      </div>
+
+      <div class="cmegp-modal-body" id="saved-reports-list-container">
+        <!-- Dynamically populated report cards -->
+      </div>
+
+      <div class="cmegp-modal-footer">
+        <span id="database-storage-info" class="storage-info-text">Persistent Database: IndexedDB & Local File System Sync</span>
+        <button type="button" class="btn btn-secondary" onclick="closeReportsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       Save Final Report Confirmation Modal
+       ========================================================================== -->
+  <div id="modal-save-final" class="cmegp-modal-backdrop" style="display: none;">
+    <div class="cmegp-modal">
+      <div class="cmegp-modal-header">
+        <div class="modal-header-title">
+          <h2>✅ Save Final Report to Database</h2>
+          <p>Save this finalized CMEGP Project Report for future reference and bank submission.</p>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeSaveFinalModal()">&times;</button>
+      </div>
+
+      <div class="cmegp-modal-body">
+        <!-- Snapshot preview of key project figures -->
+        <div class="final-report-snapshot" id="final-snapshot-box">
+          <div class="snapshot-item">
+            <div class="snapshot-label">Total Project Cost</div>
+            <div class="snapshot-val" id="snap-cost">₹ 0</div>
+          </div>
+          <div class="snapshot-item">
+            <div class="snapshot-label">Bank Term Loan</div>
+            <div class="snapshot-val" id="snap-loan">₹ 0</div>
+          </div>
+          <div class="snapshot-item">
+            <div class="snapshot-label">Margin Subsidy</div>
+            <div class="snapshot-val" id="snap-subsidy">₹ 0</div>
+          </div>
+          <div class="snapshot-item">
+            <div class="snapshot-label">Own Contribution</div>
+            <div class="snapshot-val" id="snap-own">₹ 0</div>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 14px;">
+          <label class="form-label" for="final-project-name">Project / Business Title *</label>
+          <input type="text" id="final-project-name" class="input-full" placeholder="e.g. Samarth Car Washing Center">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="final-applicant-name">Applicant / Entrepreneur Name</label>
+          <input type="text" id="final-applicant-name" class="input-full" placeholder="Full Name">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="final-report-notes">Reference Notes / Bank Branch (Optional)</label>
+          <textarea id="final-report-notes" class="input-full" rows="2" placeholder="e.g. Application submitted to Bank of Maharashtra, Amravati Branch"></textarea>
+        </div>
+
+        <div class="form-group" id="save-mode-option" style="display: none;">
+          <label style="font-size: 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-secondary);">
+            <input type="checkbox" id="save-as-new-checkbox">
+            Save as a new record instead of updating current record
+          </label>
+        </div>
+      </div>
+
+      <div class="cmegp-modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeSaveFinalModal()">Cancel</button>
+        <button type="button" class="btn btn-final" onclick="confirmSaveFinalReport()">
+          <span>Confirm & Save Final Report</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       Quick Financial Summary Modal
+       ========================================================================== -->
+  <div id="modal-report-summary" class="cmegp-modal-backdrop" style="display: none;">
+    <div class="cmegp-modal">
+      <div class="cmegp-modal-header">
+        <div class="modal-header-title">
+          <h2 id="summary-modal-title">📊 Financial Overview</h2>
+          <p id="summary-modal-subtitle">Summary of key performance indicators</p>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeSummaryModal()">&times;</button>
+      </div>
+
+      <div class="cmegp-modal-body" id="summary-modal-content">
+        <!-- Dynamically injected table summary -->
+      </div>
+
+      <div class="cmegp-modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeSummaryModal()">Close</button>
+        <button type="button" class="btn btn-primary" id="summary-load-btn">
+          <span>Load Into Editor</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
 
   <script src="app.js"></script>
 </body>

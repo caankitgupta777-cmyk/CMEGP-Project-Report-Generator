@@ -206,6 +206,61 @@ select {
   box-shadow: 0 6px 16px rgba(31, 114, 68, 0.35);
 }
 
+.btn-word {
+  background: linear-gradient(135deg, #2b579a, #183f7a);
+  box-shadow: 0 4px 12px rgba(43, 87, 154, 0.2);
+}
+
+.btn-word:hover {
+  box-shadow: 0 6px 16px rgba(43, 87, 154, 0.35);
+}
+
+.btn-draft {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.25);
+  color: #fff;
+}
+
+.btn-draft:hover {
+  box-shadow: 0 6px 16px rgba(217, 119, 6, 0.4);
+}
+
+.btn-final {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  color: #fff;
+}
+
+.btn-final:hover {
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+}
+
+.btn-database {
+  background: linear-gradient(135deg, #4f46e5, #4338ca);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  color: #fff;
+}
+
+.btn-database:hover {
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+}
+
+.badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 5px;
+}
+
 /* App Main Container */
 main {
   flex: 1;
@@ -584,12 +639,28 @@ p.report-paragraph {
   font-size: 12px;
 }
 
+.signature-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 220px;
+}
+
+.sig-name {
+  font-weight: 600;
+  font-size: 12px;
+  color: #111827;
+  text-align: center;
+  word-break: break-word;
+}
+
 .signature-box {
   border-top: 1px dashed #4b5563;
-  width: 220px;
+  width: 100%;
   padding-top: 8px;
   text-align: center;
-  margin-top: 60px;
+  margin-top: 40px;
   font-weight: 600;
 }
 
@@ -700,4 +771,663 @@ p.report-paragraph {
   tr, table {
     page-break-inside: avoid !important;
   }
+}
+
+/* Android WebView specific styling overrides */
+body.android-app .sidebar {
+  width: 100% !important;
+  max-width: 100% !important;
+  border-right: none !important;
+}
+
+body.android-app #mobile-toggle-btn {
+  display: inline-flex !important;
+}
+
+body.android-app .preset-selector {
+  display: none !important;
+}
+
+body.android-app .preview-container {
+  padding: 10px !important;
+  width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+body.android-app .paper-page {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: auto !important;
+  padding: 20px 10px !important;
+  margin-bottom: 15px !important;
+  box-shadow: none !important;
+  font-size: 11px !important;
+}
+
+body.android-app .cover-page {
+  height: auto !important;
+  min-height: auto !important;
+  padding: 15px !important;
+}
+
+body.android-app .cover-title-box {
+  margin: 40px 0 !important;
+}
+
+body.android-app .cover-title {
+  font-size: 20px !important;
+}
+
+body.android-app .report-title {
+  font-size: 14px !important;
+  margin-bottom: 15px !important;
+  padding-bottom: 4px !important;
+}
+
+body.android-app .report-subtitle {
+  font-size: 12px !important;
+  margin-top: 15px !important;
+  margin-bottom: 8px !important;
+}
+
+body.android-app p.report-paragraph {
+  font-size: 11px !important;
+  margin-bottom: 10px !important;
+}
+
+body.android-app .report-table {
+  font-size: 9px !important;
+  margin-bottom: 10px !important;
+}
+
+body.android-app .report-table th, body.android-app .report-table td {
+  padding: 4px 6px !important;
+}
+
+body.android-app .signature-block {
+  margin-top: 20px !important;
+}
+
+body.android-app .signature-box {
+  margin-top: 20px !important;
+}
+
+body.android-app header {
+  padding: 0 12px !important;
+  height: 60px !important;
+}
+
+body.android-app .brand h1 {
+  font-size: 16px !important;
+}
+
+body.android-app .logo-icon {
+  width: 32px !important;
+  height: 32px !important;
+  font-size: 16px !important;
+}
+
+body.android-app .header-controls {
+  gap: 6px !important;
+}
+
+body.android-app .btn {
+  padding: 6px 10px !important;
+  font-size: 11px !important;
+}
+
+body.android-app .btn:not(#mobile-toggle-btn) span {
+  display: none !important;
+}
+
+body.android-app .btn::after {
+  font-size: 11px;
+  font-weight: bold;
+}
+
+body.android-app .btn-success::after {
+  content: "PDF";
+}
+
+body.android-app .btn-word::after {
+  content: "Word";
+}
+
+body.android-app .btn-excel::after {
+  content: "Excel";
+}
+
+body.android-app .btn-draft::after {
+  content: "Draft";
+}
+
+body.android-app .btn-final::after {
+  content: "Final";
+}
+
+body.android-app .btn-database::after {
+  content: "Saved";
+}
+
+body.android-app .active-report-pill {
+  display: none !important;
+}
+
+body.android-app .cmegp-modal {
+  max-width: 95vw !important;
+  max-height: 92vh !important;
+  border-radius: var(--radius-md) !important;
+}
+
+/* ==========================================================================
+   Active Report Indicator & Status Badges
+   ========================================================================== */
+.active-report-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 14px;
+  padding: 5px 12px;
+  background: rgba(31, 41, 55, 0.6);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.active-report-pill:hover {
+  background: rgba(31, 41, 55, 0.9);
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+.status-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.5px;
+}
+
+.badge-new {
+  background: rgba(107, 114, 128, 0.25);
+  color: #d1d5db;
+  border: 1px solid rgba(107, 114, 128, 0.4);
+}
+
+.badge-draft {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.badge-final {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.active-report-name {
+  max-width: 170px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* ==========================================================================
+   Modal Dialogs (Database Explorer & Save Dialogs)
+   ========================================================================== */
+.cmegp-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: modalFadeIn 0.18s ease-out;
+}
+
+.cmegp-modal {
+  background: #111827;
+  border: 1px solid rgba(75, 85, 99, 0.4);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 620px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  animation: modalScaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cmegp-modal-lg {
+  max-width: 880px;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalScaleUp {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.cmegp-modal-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--bg-card-border);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  background: rgba(17, 24, 39, 0.85);
+}
+
+.modal-header-title h2 {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-header-title p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.modal-close-btn:hover {
+  color: #fff;
+}
+
+.modal-toolbar {
+  padding: 14px 24px 10px;
+  background: rgba(17, 24, 39, 0.6);
+  border-bottom: 1px solid var(--bg-card-border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.filter-tabs {
+  display: flex;
+  background: rgba(31, 41, 55, 0.6);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--bg-card-border);
+}
+
+.filter-tab {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-tab:hover {
+  color: #fff;
+}
+
+.filter-tab.active {
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+}
+
+.filter-badge {
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.modal-search-box {
+  flex: 1;
+  min-width: 200px;
+}
+
+.modal-search-box input {
+  width: 100%;
+  background: rgba(31, 41, 55, 0.6);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-sm);
+  color: #fff;
+  padding: 7px 12px;
+  font-size: 12px;
+  outline: none;
+}
+
+.modal-search-box input:focus {
+  border-color: var(--color-primary);
+  background: rgba(31, 41, 55, 0.9);
+}
+
+.modal-actions-bar {
+  padding: 10px 24px;
+  background: rgba(17, 24, 39, 0.4);
+  border-bottom: 1px solid var(--bg-card-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.modal-backup-tools {
+  display: flex;
+  gap: 8px;
+}
+
+.cmegp-modal-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cmegp-modal-footer {
+  padding: 14px 24px;
+  border-top: 1px solid var(--bg-card-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(17, 24, 39, 0.85);
+}
+
+.storage-info-text {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   Report Card Items in Saved List
+   ========================================================================== */
+.report-card {
+  background: rgba(31, 41, 55, 0.45);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-md);
+  padding: 15px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.2s ease;
+}
+
+.report-card:hover {
+  background: rgba(31, 41, 55, 0.75);
+  border-color: rgba(96, 165, 250, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.report-card.card-active-dpr {
+  border-color: var(--color-primary);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.card-main-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.card-project-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-promoter {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.card-meta-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.card-date {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.card-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.card-chip {
+  background: rgba(17, 24, 39, 0.8);
+  border: 1px solid rgba(75, 85, 99, 0.35);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.card-chip strong {
+  color: #60a5fa;
+}
+
+.card-notes {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-muted);
+  background: rgba(17, 24, 39, 0.4);
+  padding: 5px 8px;
+  border-radius: 4px;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(75, 85, 99, 0.2);
+}
+
+.btn-card-action {
+  background: rgba(55, 65, 81, 0.5);
+  border: 1px solid rgba(75, 85, 99, 0.4);
+  color: #e5e7eb;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-card-action:hover {
+  background: rgba(75, 85, 99, 0.8);
+  color: #fff;
+}
+
+.btn-card-load {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  border-color: transparent;
+  color: #fff;
+}
+
+.btn-card-load:hover {
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.35);
+}
+
+.btn-card-danger {
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.btn-card-danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.empty-state-icon {
+  font-size: 42px;
+  opacity: 0.7;
+}
+
+.empty-state h3 {
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+
+.empty-state p {
+  font-size: 13px;
+  max-width: 420px;
+}
+
+/* ==========================================================================
+   Save Final Modal Snapshot Box
+   ========================================================================== */
+.final-report-snapshot {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  background: rgba(31, 41, 55, 0.5);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+}
+
+.snapshot-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.snapshot-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.snapshot-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: #34d399;
+}
+
+/* ==========================================================================
+   Toast Notifications
+   ========================================================================== */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  background: #1f2937;
+  color: #fff;
+  border: 1px solid rgba(75, 85, 99, 0.5);
+  border-radius: var(--radius-md);
+  padding: 12px 18px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  animation: toastSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  min-width: 280px;
+  max-width: 400px;
+}
+
+.toast-success {
+  border-left: 4px solid var(--color-success);
+}
+
+.toast-draft {
+  border-left: 4px solid var(--color-warning);
+}
+
+.toast-info {
+  border-left: 4px solid var(--color-primary);
+}
+
+.toast-danger {
+  border-left: 4px solid var(--color-danger);
+}
+
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toastSlideOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(16px); }
 }
